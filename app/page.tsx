@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type CheckStatus = "pass" | "warn" | "fail" | "info" | "skip";
 
@@ -59,6 +59,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<VerifyResult | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("email");
+    if (q) check(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function check(target?: string) {
     const value = (target ?? email).trim();
@@ -67,6 +74,8 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setCopied(false);
+    window.history.replaceState(null, "", `/?email=${encodeURIComponent(value)}`);
     try {
       const res = await fetch("/api/verify", {
         method: "POST",
@@ -81,6 +90,14 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyLink() {
+    if (!result) return;
+    const url = `${window.location.origin}/?email=${encodeURIComponent(result.email)}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   const verdict = result ? VERDICT_META[result.verdict] : null;
@@ -158,6 +175,13 @@ export default function Home() {
               />
             </div>
 
+            <button
+              onClick={copyLink}
+              className="mt-3 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              {copied ? "Link copied ✓" : "Copy shareable link"}
+            </button>
+
             {result.suggestion && (
               <button
                 onClick={() => check(result.suggestion!)}
@@ -193,13 +217,83 @@ export default function Home() {
           </div>
         )}
 
-        <p className="mt-10 text-xs leading-relaxed text-zinc-400 dark:text-zinc-500">
-          Verdicts are based on syntax, DNS mail-server records, and reputation
-          signals. Mailbox-level SMTP verification isn&apos;t possible from
-          serverless platforms (outbound port 25 is blocked), so a
-          &ldquo;deliverable&rdquo; verdict means the domain accepts mail — not
-          that the specific mailbox exists. No addresses are stored.
-        </p>
+        <details className="mt-10 group rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+          <summary className="cursor-pointer select-none px-5 py-4 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100">
+            How it works
+          </summary>
+          <div className="px-5 pb-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 space-y-4">
+            <p>Every address runs through six checks, live:</p>
+            <ol className="list-decimal pl-5 space-y-1.5">
+              <li>
+                <strong className="text-zinc-800 dark:text-zinc-200">Syntax</strong> —
+                is it a well-formed address per RFC 5322?
+              </li>
+              <li>
+                <strong className="text-zinc-800 dark:text-zinc-200">Typo detection</strong> —
+                edit distance against popular providers catches slips like{" "}
+                <code className="text-xs">gmial.com</code> and suggests the fix.
+              </li>
+              <li>
+                <strong className="text-zinc-800 dark:text-zinc-200">Mail servers</strong> —
+                a live DNS lookup confirms the domain publishes MX records
+                (or an A-record fallback) that can actually receive mail.
+              </li>
+              <li>
+                <strong className="text-zinc-800 dark:text-zinc-200">Disposable domains</strong> —
+                checked against an open dataset of thousands of throwaway
+                email providers.
+              </li>
+              <li>
+                <strong className="text-zinc-800 dark:text-zinc-200">Role accounts</strong> —
+                shared inboxes like <code className="text-xs">info@</code> or{" "}
+                <code className="text-xs">noreply@</code> get flagged; they&apos;re
+                risky targets for personal correspondence or marketing lists.
+              </li>
+              <li>
+                <strong className="text-zinc-800 dark:text-zinc-200">Provider type</strong> —
+                free consumer provider vs. custom/business domain, for context.
+              </li>
+            </ol>
+            <p>
+              <strong className="text-zinc-800 dark:text-zinc-200">
+                Why not verify the exact mailbox?
+              </strong>{" "}
+              Commercial verifiers open an SMTP connection and ask the mail
+              server whether the mailbox exists (<code className="text-xs">RCPT TO</code>).
+              That requires outbound port 25, which serverless platforms like
+              Vercel block to prevent spam — and doing it reliably takes
+              dedicated servers with warmed-up sending reputation. So a
+              &ldquo;Deliverable&rdquo; verdict here means the domain accepts
+              mail, not that the specific mailbox exists. This tool prefers
+              being honest about that boundary over pretending otherwise.
+            </p>
+            <p>
+              Addresses are checked in-memory and never stored or logged.
+            </p>
+          </div>
+        </details>
+
+        <footer className="mt-10 flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+          <span>
+            Built by{" "}
+            <a
+              href="https://github.com/ejleeSF"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 underline underline-offset-2"
+            >
+              EJ Lee
+            </a>
+          </span>
+          <a
+            href="https://github.com/ejleeSF/email-verifier"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 underline underline-offset-2"
+          >
+            Source on GitHub
+          </a>
+        </footer>
       </div>
     </main>
   );

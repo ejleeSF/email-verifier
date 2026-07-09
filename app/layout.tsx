@@ -12,10 +12,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const description =
+  "Check whether an email address is real and deliverable — syntax, MX records, disposable domains, typo detection, and role-account heuristics. Free.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://verify.ejlee.io"),
   title: "Email Verifier",
-  description:
-    "Check whether an email address is real and deliverable — syntax, MX records, disposable domains, typo detection, and role-account heuristics.",
+  description,
+  openGraph: {
+    title: "Email Verifier",
+    description,
+    url: "https://verify.ejlee.io",
+    siteName: "Email Verifier",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Email Verifier",
+    description,
+  },
 };
 
 export default function RootLayout({
