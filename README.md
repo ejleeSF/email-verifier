@@ -9,9 +9,10 @@ Given an address, it runs a pipeline of checks and returns a verdict (**Delivera
 1. **Syntax** — RFC 5322 format validation (`validator.js`)
 2. **Typo detection** — Levenshtein distance against popular providers, with a clickable "did you mean" suggestion (`gmial.com` → `gmail.com`)
 3. **Mail servers** — live DNS MX lookup, with RFC 5321 A/AAAA fallback and RFC 7505 null-MX handling
-4. **Disposable domains** — checked against the open [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) dataset
-5. **Role accounts** — flags shared inboxes (`info@`, `support@`, `noreply@`, …)
-6. **Provider type** — free consumer provider vs. custom/business domain
+4. **Sender authentication** — TXT lookups for SPF and DMARC policies, a signal of an actively managed mail domain
+5. **Disposable domains** — checked against the open [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) dataset
+6. **Role accounts** — flags shared inboxes (`info@`, `support@`, `noreply@`, …)
+7. **Provider type** — free consumer provider vs. custom/business domain
 
 ## Why no SMTP verification?
 

@@ -222,7 +222,7 @@ export default function Home() {
             How it works
           </summary>
           <div className="px-5 pb-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 space-y-4">
-            <p>Every address runs through six checks, live:</p>
+            <p>Every address runs through seven checks, live:</p>
             <ol className="list-decimal pl-5 space-y-1.5">
               <li>
                 <strong className="text-zinc-800 dark:text-zinc-200">Syntax</strong> —
@@ -237,6 +237,12 @@ export default function Home() {
                 <strong className="text-zinc-800 dark:text-zinc-200">Mail servers</strong> —
                 a live DNS lookup confirms the domain publishes MX records
                 (or an A-record fallback) that can actually receive mail.
+              </li>
+              <li>
+                <strong className="text-zinc-800 dark:text-zinc-200">Sender authentication</strong> —
+                TXT lookups check whether the domain publishes SPF and DMARC
+                policies, a strong signal it&apos;s an actively managed,
+                legitimate mail domain.
               </li>
               <li>
                 <strong className="text-zinc-800 dark:text-zinc-200">Disposable domains</strong> —

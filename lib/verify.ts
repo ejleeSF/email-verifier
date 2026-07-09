@@ -168,6 +168,30 @@ async function lookupMailServers(domain: string): Promise<MxOutcome> {
   }
 }
 
+interface AuthOutcome {
+  spf: boolean;
+  dmarc: boolean;
+  dmarcPolicy: string | null;
+}
+
+async function lookupAuth(domain: string): Promise<AuthOutcome> {
+  const [spfRecords, dmarcRecords] = await Promise.all([
+    withTimeout(dns.resolveTxt(domain), 5000).catch(() => [] as string[][]),
+    withTimeout(dns.resolveTxt(`_dmarc.${domain}`), 5000).catch(
+      () => [] as string[][],
+    ),
+  ]);
+  const spf = spfRecords.some((chunks) =>
+    chunks.join("").toLowerCase().startsWith("v=spf1"),
+  );
+  const dmarcRecord = dmarcRecords
+    .map((chunks) => chunks.join(""))
+    .find((txt) => txt.toLowerCase().startsWith("v=dmarc1"));
+  const dmarcPolicy =
+    dmarcRecord?.match(/\bp=([a-z]+)/i)?.[1]?.toLowerCase() ?? null;
+  return { spf, dmarc: Boolean(dmarcRecord), dmarcPolicy };
+}
+
 export async function verifyEmail(rawEmail: string): Promise<VerifyResult> {
   const email = rawEmail.trim().toLowerCase();
   const checks: Check[] = [];
@@ -209,8 +233,11 @@ export async function verifyEmail(rawEmail: string): Promise<VerifyResult> {
     });
   }
 
-  // 3. Mail servers (MX / A fallback)
-  const mx = await lookupMailServers(domain);
+  // 3. Mail servers (MX / A fallback) + sender authentication, in parallel
+  const [mx, auth] = await Promise.all([
+    lookupMailServers(domain),
+    lookupAuth(domain),
+  ]);
   switch (mx.kind) {
     case "mx":
       checks.push({
@@ -247,7 +274,41 @@ export async function verifyEmail(rawEmail: string): Promise<VerifyResult> {
       break;
   }
 
-  // 4. Disposable domain
+  // 4. Sender authentication (SPF / DMARC)
+  if (auth.spf && auth.dmarc) {
+    checks.push({
+      id: "auth",
+      label: "Sender authentication",
+      status: "pass",
+      detail: `Domain publishes SPF and DMARC (policy: ${auth.dmarcPolicy ?? "unspecified"}) — a sign of an actively managed mail domain.`,
+    });
+  } else if (auth.spf) {
+    checks.push({
+      id: "auth",
+      label: "Sender authentication",
+      status: "warn",
+      detail:
+        "Domain publishes SPF but no DMARC policy. Common, but well-managed mail domains increasingly have both.",
+    });
+  } else if (auth.dmarc) {
+    checks.push({
+      id: "auth",
+      label: "Sender authentication",
+      status: "warn",
+      detail:
+        "Domain publishes DMARC but no SPF record — an unusual configuration.",
+    });
+  } else {
+    checks.push({
+      id: "auth",
+      label: "Sender authentication",
+      status: "warn",
+      detail:
+        "Domain publishes neither SPF nor DMARC records. Legitimate mail domains almost always have at least SPF.",
+    });
+  }
+
+  // 5. Disposable domain
   const disposable = DISPOSABLE.has(domain);
   checks.push({
     id: "disposable",
@@ -258,7 +319,7 @@ export async function verifyEmail(rawEmail: string): Promise<VerifyResult> {
       : "Domain is not a known disposable email provider.",
   });
 
-  // 5. Role account
+  // 6. Role account
   const role = ROLE_ACCOUNTS.has(local);
   checks.push({
     id: "role",
@@ -269,7 +330,7 @@ export async function verifyEmail(rawEmail: string): Promise<VerifyResult> {
       : "Looks like a personal (non-role) address.",
   });
 
-  // 6. Free provider (informational only)
+  // 7. Free provider (informational only)
   const free = FREE_PROVIDERS.has(domain);
   checks.push({
     id: "provider",
@@ -291,6 +352,8 @@ export async function verifyEmail(rawEmail: string): Promise<VerifyResult> {
     if (disposable) score -= 45;
     if (role) score -= 10;
     if (suggestion) score -= 15;
+    if (!auth.spf && !auth.dmarc) score -= 10;
+    else if (!auth.spf || !auth.dmarc) score -= 5;
   }
   score = Math.max(0, Math.min(100, score));
 
