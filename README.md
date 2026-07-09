@@ -25,13 +25,21 @@ npm install
 npm run dev
 ```
 
-Or hit the API directly:
+Or hit the API directly (rate-limited to 20 requests per minute per IP):
 
 ```bash
 curl -X POST http://localhost:3000/api/verify \
   -H 'Content-Type: application/json' \
   -d '{"email": "someone@example.com"}'
 ```
+
+## Tests
+
+```bash
+npm test
+```
+
+Vitest covers the scoring model, typo suggestions, role/disposable detection, MX fallback behavior (including RFC 7505 null-MX), and the rate limiter — DNS is mocked, so tests run offline.
 
 ## Privacy
 

@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 import { verifyEmail } from "@/lib/verify";
 
 export const runtime = "nodejs"; // node:dns is unavailable on the edge runtime
 
 export async function POST(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const limit = rateLimit(ip);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests — try again in a minute." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+      },
+    );
+  }
+
   let email: unknown;
   try {
     ({ email } = await request.json());

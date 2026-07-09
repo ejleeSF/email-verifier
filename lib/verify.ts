@@ -113,7 +113,7 @@ function levenshtein(a: string, b: string): number {
   return row[n];
 }
 
-function suggestDomain(domain: string): string | null {
+export function suggestDomain(domain: string): string | null {
   if (COMMON_DOMAINS.includes(domain)) return null;
   let best: string | null = null;
   let bestDist = 3; // only suggest for distance 1-2
@@ -128,12 +128,22 @@ function suggestDomain(domain: string): string | null {
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("DNS lookup timed out")), ms),
-    ),
-  ]);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("DNS lookup timed out")),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
 }
 
 type MxOutcome =
