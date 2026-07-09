@@ -2,6 +2,8 @@
 
 A free tool that checks whether an email address is likely real and deliverable. Built with Next.js and deployed on Vercel.
 
+**Live: [email-verifier-dun.vercel.app](https://email-verifier-dun.vercel.app)**
+
 Given an address, it runs a pipeline of checks and returns a verdict (**Deliverable / Risky / Undeliverable**) with a 0–100 confidence score and a per-check breakdown:
 
 1. **Syntax** — RFC 5322 format validation (`validator.js`)
